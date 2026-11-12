@@ -103,12 +103,12 @@ pipeline {
 
                     mkdir -p "$(dirname "$KUBECONFIG")"
 
-                    lstk aws eks wait cluster-active \
+                    aws eks wait cluster-active \
                         --name "$EKS_CLUSTER_NAME"
 
                     echo "Generating kubeconfig..."
 
-                    lstk aws eks update-kubeconfig \
+                    aws eks update-kubeconfig \
                         --name "$EKS_CLUSTER_NAME"
 
                     echo "Checking Kubernetes connectivity..."
