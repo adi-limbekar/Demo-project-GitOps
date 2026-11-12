@@ -8,7 +8,7 @@ pipeline {
     }
 
     environment {
-        KUBECONFIG_CREDENTIALS_ID = 'EKS_Kubeconfig'
+        // KUBECONFIG_CREDENTIALS_ID = 'EKS_Kubeconfig'
 
         AWS_ENDPOINT_URL = 'http://localhost:4566'
         AWS_DEFAULT_REGION = 'us-east-1'
@@ -16,7 +16,8 @@ pipeline {
         AWS_SECRET_ACCESS_KEY = 'test'
 
         ANSIBLE_PLAYBOOK = 'ansible/install-prerequisites.yml'
-        K8S_MANIFEST_DIR = 'k8s'
+        // K8S_MANIFEST_DIR = 'k8s'
+        TERRAFORM_DIR = 'terraform'
     }
 
     stages {
@@ -49,9 +50,10 @@ pipeline {
                     echo "Checking repository structure..."
 
                     test -d "$ansible"
-                    test -d "$terraform"
-                    test -f "$terraform/providers.tf"
-                    test -f "$terraform/resources.tf"
+                    test -f "$ansible/playbook-floci-eks.yml"
+                    test -d "$TERRAFORM_DIR"
+                    test -f "$TERRAFORM_DIR/providers.tf"
+                    test -f "$TERRAFORM_DIR/resources.tf"
 
                     echo "Dependencies and files verified."
                 '''
@@ -90,18 +92,42 @@ pipeline {
             }
         }
 
+        // 4. GENERATE KUBECONFIG
+        stage('Configure Kubernetes Access') {
+            steps {
+                sh '''
+                    set -e
+
+                    echo "Waiting for LocalStack EKS cluster..."
+
+                    mkdir -p "$(dirname "$KUBECONFIG")"
+
+                    lstk aws eks wait cluster-active \
+                        --name "$EKS_CLUSTER_NAME"
+
+                    echo "Generating kubeconfig..."
+
+                    lstk aws eks update-kubeconfig \
+                        --name "$EKS_CLUSTER_NAME"
+
+                    echo "Checking Kubernetes connectivity..."
+
+                    kubectl config current-context
+                    kubectl get nodes
+
+                    echo "Kubernetes access configured."
+                '''
+            }
+        }
+
         // -----------------------------------------------
-        // 3. RUN ANSIBLE PLAYBOOK
+        // 5. RUN ANSIBLE PLAYBOOK
         // -----------------------------------------------
         stage('Install EKS Prerequisites') {
-            steps {
-                withCredentials([
-                    file(
-                        credentialsId: "${KUBECONFIG_CREDENTIALS_ID}",
-                        variable: 'KUBECONFIG'
-                    )
-                ]) {
+            steps{
                     sh '''
+                        set -e
+
                         echo "Starting Ansible infrastructure installation..."
 
                         ansible-playbook \
@@ -113,21 +139,16 @@ pipeline {
                         echo "Ansible execution completed."
                     '''
                 }
-            }
         }
 
         // -----------------------------------------------
-        // 4. VERIFY INFRASTRUCTURE
+        // 6. VERIFY INFRASTRUCTURE
         // -----------------------------------------------
         stage('Verify Infrastructure') {
             steps {
-                withCredentials([
-                    file(
-                        credentialsId: "${KUBECONFIG_CREDENTIALS_ID}",
-                        variable: 'KUBECONFIG'
-                    )
-                ]) {
                     sh '''
+                        set -e
+                        
                         echo "Checking Kubernetes nodes..."
                         kubectl get nodes
 
@@ -147,62 +168,62 @@ pipeline {
             }
         }
 
-        // -----------------------------------------------
-        // 5. DEPLOY KUBERNETES YAML FILES
-        // -----------------------------------------------
-        stage('Deploy Kubernetes Manifests') {
-            steps {
-                withCredentials([
-                    file(
-                        credentialsId: "${KUBECONFIG_CREDENTIALS_ID}",
-                        variable: 'KUBECONFIG'
-                    )
-                ]) {
-                    sh '''
-                        echo "Deploying Kubernetes YAML manifests..."
+        // // -----------------------------------------------
+        // // 5. DEPLOY KUBERNETES YAML FILES
+        // // -----------------------------------------------
+        // stage('Deploy Kubernetes Manifests') {
+        //     steps {
+        //         withCredentials([
+        //             file(
+        //                 credentialsId: "${KUBECONFIG_CREDENTIALS_ID}",
+        //                 variable: 'KUBECONFIG'
+        //             )
+        //         ]) {
+        //             sh '''
+        //                 echo "Deploying Kubernetes YAML manifests..."
 
-                        kubectl apply -f "$K8S_MANIFEST_DIR/"
+        //                 kubectl apply -f "$K8S_MANIFEST_DIR/"
 
-                        echo "Kubernetes manifests applied."
-                    '''
-                }
-            }
-        }
+        //                 echo "Kubernetes manifests applied."
+        //             '''
+        //         }
+        //     }
+        // }
 
-        // -----------------------------------------------
-        // 6. VERIFY APPLICATION DEPLOYMENT
-        // -----------------------------------------------
-        stage('Verify Application Deployment') {
-            steps {
-                withCredentials([
-                    file(
-                        credentialsId: "${KUBECONFIG_CREDENTIALS_ID}",
-                        variable: 'KUBECONFIG'
-                    )
-                ]) {
-                    sh '''
-                        echo "Checking application deployments..."
+    //     // -----------------------------------------------
+    //     // 6. VERIFY APPLICATION DEPLOYMENT
+    //     // -----------------------------------------------
+    //     stage('Verify Application Deployment') {
+    //         steps {
+    //             withCredentials([
+    //                 file(
+    //                     credentialsId: "${KUBECONFIG_CREDENTIALS_ID}",
+    //                     variable: 'KUBECONFIG'
+    //                 )
+    //             ]) {
+    //                 sh '''
+    //                     echo "Checking application deployments..."
 
-                        kubectl get deployments -A
+    //                     kubectl get deployments -A
 
-                        echo "Checking pods..."
-                        kubectl get pods -A
+    //                     echo "Checking pods..."
+    //                     kubectl get pods -A
 
-                        echo "Checking services..."
-                        kubectl get services -A
+    //                     echo "Checking services..."
+    //                     kubectl get services -A
 
-                        echo "Checking rollout status..."
+    //                     echo "Checking rollout status..."
 
-                        kubectl get deployments -n default -o name |
-                        while read deployment; do
-                            kubectl rollout status "$deployment" \
-                                -n default --timeout=300s
-                        done
-                    '''
-                }
-            }
-        }
-    }
+    //                     kubectl get deployments -n default -o name |
+    //                     while read deployment; do
+    //                         kubectl rollout status "$deployment" \
+    //                             -n default --timeout=300s
+    //                     done
+    //                 '''
+    //             }
+    //         }
+    //     }
+    // }
 
     post {
         success {
@@ -210,12 +231,14 @@ pipeline {
             ==========================================
             PIPELINE SUCCESS
             ==========================================
+            Terraform infrastructure provisioned.
+            Kubernetes access configured.
             Ansible prerequisites installed.
             Prometheus and Grafana installed.
             ArgoCD installed.
-            Kubernetes manifests deployed.
             ==========================================
             '''
+            // Kubernetes manifests deployed.
         }
 
         failure {
