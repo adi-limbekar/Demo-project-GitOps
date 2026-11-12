@@ -18,14 +18,14 @@ provider "aws" {
   s3_use_path_style           = true
 
   endpoints {
-    eks            = "http://localhost:4566"
-    ecr            = "http://localhost:4566"
-    s3             = "http://localhost:4566"
-    rds            = "http://localhost:4566"
-    iam            = "http://localhost:4566"
-    secretsmanager = "http://localhost:4566"
-    ec2            = "http://localhost:4566"
-    sts            = "http://localhost:4566"
+    eks            = "http://floci:4566"
+    ecr            = "http://floci:4566"
+    s3             = "http://floci:4566"
+    rds            = "http://floci:4566"
+    iam            = "http://floci:4566"
+    secretsmanager = "http://floci:4566"
+    ec2            = "http://floci:4566"
+    sts            = "http://floci:4566"
   }
 }
 
