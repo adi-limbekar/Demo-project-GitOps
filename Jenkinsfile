@@ -51,7 +51,7 @@ pipeline {
                     echo "Checking repository structure..."
 
                     test -d "$ANSIBLE_DIR"
-                    test -f "$ANSIBLE_DIR/playbook-floci-eks.yml"
+                    test -f "$ANSIBLE_DIR/playbook-floci-eks.yaml"
                     test -d "$TERRAFORM_DIR"
                     test -f "$TERRAFORM_DIR/providers.tf"
                     test -f "$TERRAFORM_DIR/resources.tf"
