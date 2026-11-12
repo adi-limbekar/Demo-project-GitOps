@@ -9,12 +9,12 @@ pipeline {
 
     environment {
         // KUBECONFIG_CREDENTIALS_ID = 'EKS_Kubeconfig'
-
+floci-eks-cluster
         AWS_ENDPOINT_URL = 'http://floci:4566'
         AWS_DEFAULT_REGION = 'us-east-1'
-        AWS_ACCESS_KEY_ID = 'test'
-        AWS_SECRET_ACCESS_KEY = 'test'
-
+        EKS_CLUSTER_NAME = 'floci-eks-cluster'
+        AWS_ACCESS_KEY_ID = credentials('aws-credentials')
+        AWS_SECRET_ACCESS_KEY = credentials('aws-credentials')
         ANSIBLE_DIR="ansible"
         
         // K8S_MANIFEST_DIR = 'k8s'
@@ -96,6 +96,13 @@ pipeline {
         // 4. GENERATE KUBECONFIG
         stage('Configure Kubernetes Access') {
             steps {
+                withCredentials([
+                    usernamePassword(
+                        credentialsId: 'aws-credentials',
+                        usernameVariable: 'AWS_ACCESS_KEY_ID',
+                        asswordVariable: 'AWS_SECRET_ACCESS_KEY'
+            )
+        ]) {
                 sh '''
                     set -e
 
@@ -119,6 +126,7 @@ pipeline {
                     echo "Kubernetes access configured."
                 '''
             }
+        }
         }
 
         // -----------------------------------------------
