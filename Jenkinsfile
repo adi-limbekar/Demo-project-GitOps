@@ -9,7 +9,6 @@ pipeline {
 
     environment {
         // KUBECONFIG_CREDENTIALS_ID = 'EKS_Kubeconfig'
-floci-eks-cluster
         AWS_ENDPOINT_URL = 'http://floci:4566'
         AWS_DEFAULT_REGION = 'us-east-1'
         EKS_CLUSTER_NAME = 'floci-eks-cluster'
