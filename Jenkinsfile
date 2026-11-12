@@ -15,7 +15,8 @@ pipeline {
         AWS_ACCESS_KEY_ID = 'test'
         AWS_SECRET_ACCESS_KEY = 'test'
 
-        ANSIBLE_PLAYBOOK = 'ansible/install-prerequisites.yml'
+        ANSIBLE_DIR="ansible"
+        
         // K8S_MANIFEST_DIR = 'k8s'
         TERRAFORM_DIR = 'terraform'
     }
@@ -49,8 +50,8 @@ pipeline {
 
                     echo "Checking repository structure..."
 
-                    test -d "$ansible"
-                    test -f "$ansible/playbook-floci-eks.yml"
+                    test -d "$ANSIBLE_DIR"
+                    test -f "$ANSIBLE_DIR/playbook-floci-eks.yml"
                     test -d "$TERRAFORM_DIR"
                     test -f "$TERRAFORM_DIR/providers.tf"
                     test -f "$TERRAFORM_DIR/resources.tf"
