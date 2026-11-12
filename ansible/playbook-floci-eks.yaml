@@ -1,0 +1,167 @@
+---
+- name: Bootstrap Local Kubernetes Cluster
+  hosts: localhost
+  connection: local
+  become: true
+  gather_facts: true
+
+  tasks:
+
+    # ----------------------------------------------------
+    # 1. INSTALL SYSTEM DEPENDENCIES
+    # ----------------------------------------------------
+    - name: Install required system packages
+      ansible.builtin.apt:
+        name:
+          - curl
+          - wget
+          - apt-transport-https
+          - ca-certificates
+          - python3
+          - python3-pip
+        state: present
+        update_cache: true
+      when: ansible_os_family == "Debian"
+
+    # ----------------------------------------------------
+    # 2. INSTALL KUBECTL
+    # ----------------------------------------------------
+    - name: Check if kubectl exists
+      ansible.builtin.command: which kubectl
+      register: kubectl_check
+      changed_when: false
+      failed_when: false
+
+    - name: Download kubectl
+      ansible.builtin.get_url:
+        url: "https://dl.k8s.io/release/stable.txt"
+        dest: /tmp/kubectl-version
+        mode: "0644"
+      when: kubectl_check.rc != 0
+
+    - name: Read kubectl version
+      ansible.builtin.command: cat /tmp/kubectl-version
+      register: kubectl_version
+      changed_when: false
+      when: kubectl_check.rc != 0
+
+    - name: Download kubectl binary
+      ansible.builtin.get_url:
+        url: "https://dl.k8s.io/release/{{ kubectl_version.stdout }}/bin/linux/amd64/kubectl"
+        dest: /usr/local/bin/kubectl
+        mode: "0755"
+      when: kubectl_check.rc != 0
+
+    # ----------------------------------------------------
+    # 3. INSTALL HELM 3
+    # ----------------------------------------------------
+    - name: Check if Helm exists
+      ansible.builtin.command: which helm
+      register: helm_check
+      changed_when: false
+      failed_when: false
+
+    - name: Download Helm installation script
+      ansible.builtin.get_url:
+        url: "https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3"
+        dest: /tmp/get-helm-3
+        mode: "0755"
+      when: helm_check.rc != 0
+
+    - name: Install Helm 3
+      ansible.builtin.command: /tmp/get-helm-3
+      when: helm_check.rc != 0
+    # ----------------------------------------------------
+    # 4. INSTALL PYTHON KUBERNETES DEPENDENCIES
+    # ----------------------------------------------------
+    - name: Install Python Kubernetes dependencies
+      ansible.builtin.pip:
+        name:
+          - kubernetes
+          - PyYAML
+        state: present
+        break_system_packages: true
+
+    # ----------------------------------------------------
+    # 5. INSTALL ANSIBLE KUBERNETES COLLECTION
+    # ----------------------------------------------------
+    - name: Install kubernetes.core collection
+      become: false
+      ansible.builtin.command:
+        cmd: ansible-galaxy collection install kubernetes.core
+      register: collection_install
+      changed_when: "'was installed successfully' in collection_install.stdout"
+
+    # ----------------------------------------------------
+    # 6. VERIFY KUBERNETES CONNECTION
+    # ----------------------------------------------------
+    - name: Check Kubernetes cluster connectivity
+      become: false
+      ansible.builtin.command: kubectl cluster-info
+      changed_when: false
+
+    # ----------------------------------------------------
+    # 7. ADD HELM REPOSITORIES
+    # ----------------------------------------------------
+    - name: Add Prometheus Community Helm repo
+      kubernetes.core.helm_repository:
+        name: prometheus-community
+        repo_url: "https://prometheus-community.github.io/helm-charts"
+
+    - name: Add Argo CD Helm repo
+      kubernetes.core.helm_repository:
+        name: argo
+        repo_url: "https://argoproj.github.io/argo-helm"
+
+    # ----------------------------------------------------
+    # 8. CREATE NAMESPACES
+    # ----------------------------------------------------
+    - name: Create monitoring and argocd namespaces
+      kubernetes.core.k8s:
+        api_version: v1
+        kind: Namespace
+        name: "{{ item }}"
+        state: present
+      loop:
+        - monitoring
+        - argocd
+
+    # ----------------------------------------------------
+    # 9. INSTALL PROMETHEUS & GRAFANA (kube-prometheus-stack)
+    # ----------------------------------------------------
+    - name: Install Prometheus and Grafana via Helm
+      kubernetes.core.helm:
+        name: kube-prometheus-stack
+        chart_ref: prometheus-community/kube-prometheus-stack
+        release_namespace: monitoring
+        create_namespace: true
+        state: present
+        wait: true
+        values:
+          # Disabling default persistent storage for easy local testing. 
+          # Change to true if using your local-storage class.
+          prometheus:
+            prometheusSpec:
+              storageSpec: {}
+          grafana:
+            persistence:
+              enabled: false
+            # Optional: Set a default admin password for Grafana (Default is 'prom-operator')
+            adminPassword: "admin" 
+
+    # ----------------------------------------------------
+    # 10. INSTALL ARGOCD
+    # ----------------------------------------------------
+    - name: Install Argo CD via Helm
+      kubernetes.core.helm:
+        name: argocd
+        chart_ref: argo/argo-cd
+        release_namespace: argocd
+        create_namespace: true
+        state: present
+        wait: true
+        values:
+          server:
+            # Allows local HTTP access without forcing SSL errors on localhost
+            extraArgs:
+              - --insecure
