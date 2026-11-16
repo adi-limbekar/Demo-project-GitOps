@@ -117,27 +117,10 @@ pipeline {
                     aws eks update-kubeconfig \
                         --name "$EKS_CLUSTER_NAME"
 
-                    # 1. Extract the dynamic port assigned by Floci (e.g., 6501)
-                    CURRENT_SERVER=$(kubectl config view -o jsonpath='{.clusters[0].cluster.server}')
-                    CLUSTER_PORT="${CURRENT_SERVER##*:}"
-
-                    # 2. Pick host.docker.internal if resolvable, otherwise use Docker bridge gateway IP
-                    if getent hosts host.docker.internal >/dev/null 2>&1; then
-                        TARGET_HOST="host.docker.internal"
-                    else
-                        TARGET_HOST=$(ip route show | awk '/default/ {print $3}')
-                    fi
-
-                    echo "Pointing kubectl to https://${TARGET_HOST}:${CLUSTER_PORT}"
-
+                    # Point kubectl directly to the k3s container over Docker DNS on internal port 6443
                     kubectl config set-cluster "arn:aws:eks:us-east-1:000000000000:cluster/${EKS_CLUSTER_NAME}" \
-                        --server="https://${TARGET_HOST}:${CLUSTER_PORT}" \
+                        --server="https://floci-aws-eks-${EKS_CLUSTER_NAME}:6443" \
                         --insecure-skip-tls-verify=true
-
-                    # Point kubeconfig from localhost to the Docker host
-                    #kubectl config set-cluster "arn:aws:eks:${AWS_DEFAULT_REGION}:000000000000:cluster/${EKS_CLUSTER_NAME}" \
-                    #        --server="https://docker.internal" \
-                    #        --insecure-skip-tls-verify=true
 
                     echo "Checking Kubernetes connectivity..."
 
