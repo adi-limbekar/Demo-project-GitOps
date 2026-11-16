@@ -18,7 +18,6 @@ pipeline {
         
         // K8S_MANIFEST_DIR = 'k8s'
         TERRAFORM_DIR = 'terraform'
-        EKS_CLUSTER_NAME = 'floci-eks-cluster'
     }
 
     stages {
