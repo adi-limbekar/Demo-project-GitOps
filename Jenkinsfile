@@ -117,10 +117,18 @@ pipeline {
                     aws eks update-kubeconfig \
                         --name "$EKS_CLUSTER_NAME"
 
-                    # Point kubectl directly to the k3s container over Docker DNS on internal port 6443
-                    kubectl config set-cluster "arn:aws:eks:us-east-1:000000000000:cluster/${EKS_CLUSTER_NAME}" \
-                        --server="https://floci-aws-eks-${EKS_CLUSTER_NAME}:6443" \
-                        --insecure-skip-tls-verify=true
+                    mkdir -p ~/.kube
+
+                    # Download Floci's pre-authenticated kubeconfig and rewrite localhost:6501 -> container:6443
+                    curl -s "${AWS_ENDPOINT_URL}/_floci/eks/clusters/${EKS_CLUSTER_NAME}/kubeconfig" \
+
+                        | sed -E "s|https://localhost:[0-9]+|https://floci-aws-eks-${EKS_CLUSTER_NAME}:6443|g" \
+                        > ~/.kube/config
+
+                    # Disable TLS cert hostname check since the cert is issued for localhost
+                    CLUSTER_NAME=$(kubectl config view -o jsonpath='{.clusters[0].name}')
+                    kubectl config unset "clusters.${CLUSTER_NAME}.certificate-authority-data" >/dev/null 2>&1 || true
+                    kubectl config set-cluster "$CLUSTER_NAME" --insecure-skip-tls-verify=true
 
                     echo "Checking Kubernetes connectivity..."
 
