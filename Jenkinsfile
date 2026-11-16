@@ -117,6 +117,11 @@ pipeline {
                     aws eks update-kubeconfig \
                         --name "$EKS_CLUSTER_NAME"
 
+                    # Point kubeconfig from localhost to the Docker host
+                    kubectl config set-cluster "arn:aws:eks:${AWS_DEFAULT_REGION}:000000000000:cluster/${EKS_CLUSTER_NAME}" \
+                            --server="https://docker.internal" \
+                            --insecure-skip-tls-verify=true
+
                     echo "Checking Kubernetes connectivity..."
 
                     kubectl config current-context
