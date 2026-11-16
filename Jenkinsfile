@@ -125,7 +125,7 @@ pipeline {
                     # Replace the exec token plugin with a static token generated right now with active credentials
                     TOKEN=$(aws eks get-token --cluster-name "$EKS_CLUSTER_NAME" --query 'status.token' --output text)
                     kubectl config set-credentials "arn:aws:eks:us-east-1:000000000000:cluster/${EKS_CLUSTER_NAME}" \
-                        --token="$TOKEN
+                        --token="$TOKEN"
 
                     echo "Checking Kubernetes connectivity..."
 
