@@ -15,6 +15,7 @@ pipeline {
         AWS_ACCESS_KEY_ID = credentials('aws-credentials')
         AWS_SECRET_ACCESS_KEY = credentials('aws-credentials')
         ANSIBLE_DIR="ansible"
+        ANSIBLE_PLAYBOOK="${ANSIBLE_DIR}/playbook-floci-eks.yaml"
         
         // K8S_MANIFEST_DIR = 'k8s'
         TERRAFORM_DIR = 'terraform'
