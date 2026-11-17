@@ -112,23 +112,24 @@ pipeline {
                     aws eks wait cluster-active \
                         --name "$EKS_CLUSTER_NAME"
 
-                    echo "Generating kubeconfig..."
+                    #echo "Generating kubeconfig..."
 
-                    aws eks update-kubeconfig \
-                        --name "$EKS_CLUSTER_NAME"
+                    #aws eks update-kubeconfig \
+                    #    --name "$EKS_CLUSTER_NAME"
 
-                    # Point kubectl to the k3s container over Docker DNS
-                    kubectl config set-cluster "arn:aws:eks:us-east-1:000000000000:cluster/${EKS_CLUSTER_NAME}" \
-                        --server="https://floci-aws-eks-${EKS_CLUSTER_NAME}:6443" \
-                        --insecure-skip-tls-verify=true
+                    echo "Copying k3s admin kubeconfig..."
+                    mkdir -p ~/.kube
 
-                    # Replace the exec token plugin with a static token generated right now with active credentials
-                    TOKEN=$(aws eks get-token --cluster-name "$EKS_CLUSTER_NAME" --query 'status.token' --output text)
-                    kubectl config set-credentials "arn:aws:eks:us-east-1:000000000000:cluster/${EKS_CLUSTER_NAME}" \
-                        --token="$TOKEN"
+                    docker cp "floci-aws-eks-${EKS_CLUSTER_NAME}:/etc/rancher/k3s/k3s.yaml" ~/.kube/config
+
+                    # Rewrite 127.0.0.1:6443 to the k3s container name over Docker DNS
+                    sed -i "s|https://127.0.0.1:6443|https://floci-aws-eks-${EKS_CLUSTER_NAME}:6443|g" ~/.kube/config
+
+                    # Skip TLS hostname verification since cert is issued for 127.0.0.1
+                    kubectl config unset clusters.default.certificate-authority-data >/dev/null 2>&1 || true
+                    kubectl config set-cluster default --insecure-skip-tls-verify=true
 
                     echo "Checking Kubernetes connectivity..."
-
                     kubectl config current-context
                     kubectl get nodes
 
