@@ -18,14 +18,14 @@ provider "aws" {
   s3_use_path_style           = true
 
   endpoints {
-    eks            = "http://localhost:4566"
-    ecr            = "http://localhost:4566"
-    s3             = "http://localhost:4566"
-    rds            = "http://localhost:4566"
-    iam            = "http://localhost:4566"
-    secretsmanager = "http://localhost:4566"
-    ec2            = "http://localhost:4566"
-    sts            = "http://localhost:4566"
+    eks            = "http://127.0.0.1:4566"
+    ecr            = "http://127.0.0.1:4566"
+    s3             = "http://127.0.0.1:4566"
+    rds            = "http://127.0.0.1:4566"
+    iam            = "http://127.0.0.1:4566"
+    secretsmanager = "http://127.0.0.1:4566"
+    ec2            = "http://127.0.0.1:4566"
+    sts            = "http://127.0.0.1:4566"
   }
 }
 
